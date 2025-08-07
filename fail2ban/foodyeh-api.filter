@@ -1,0 +1,22 @@
+# Fail2Ban filter for Foodyeh API
+# This filter parses structured JSON logs from the FastAPI application
+
+[Definition]
+# Filter name
+failregex = ^.*"event":\s*"(unauthorized_access|auth_failure|https_violation|application_error)".*"ip":\s*"<HOST>".*$
+            ^.*"level":\s*"warning".*"event":\s*"(unauthorized_access|auth_failure)".*"ip":\s*"<HOST>".*$
+            ^.*"status":\s*(401|403|429).*"ip":\s*"<HOST>".*$
+
+# Ignore regex (optional - for legitimate requests)
+ignoreregex = ^.*"ip":\s*"<HOST>".*"status":\s*200.*$
+              ^.*"ip":\s*"<HOST>".*"event":\s*"request_completed".*$
+
+# Date format for the log
+datepattern = ^.*"timestamp":\s*"([^"]+)".*$
+
+# Additional patterns for different log formats
+# Standard JSON log format
+# ^.*"timestamp":\s*"([^"]+)".*"event":\s*"(unauthorized_access|auth_failure)".*"ip":\s*"<HOST>".*$
+
+# Alternative pattern for non-JSON logs (if needed)
+# ^.*\[.*\]\s*WARNING.*unauthorized_access.*ip=<HOST>.*$ 

@@ -1,0 +1,55 @@
+# Environment files (contain secrets)
+.env
+.env.local
+.env.production
+.env.staging
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Logs
+logs/
+*.log
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# SSL certificates
+ssl/
+*.pem
+*.key
+*.crt
+
+# Temporary files
+*.tmp
+*.temp
+
+# Test files
+test_jwt.py
+env_test.txt
+
+# Backup files
+*.bak
+*.backup
+
+# Node modules (if any)
+node_modules/
+
+# Build files
+dist/
+build/

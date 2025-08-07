@@ -1,0 +1,39 @@
+# FastAPI and ASGI server
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+
+# Security and Authentication
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-dotenv==1.0.0
+
+# MQTT Client
+paho-mqtt==1.6.1
+
+# Database and Caching
+redis==5.0.1
+sqlalchemy==2.0.23
+alembic==1.12.1
+
+# Rate Limiting and Security
+slowapi==0.1.9
+python-ipware==3.0.0
+
+# Logging and Monitoring
+structlog==23.2.0
+prometheus-client==0.19.0
+
+# Validation and Serialization
+pydantic==2.5.0
+pydantic-settings==2.1.0
+email-validator==2.1.0
+
+# HTTP Client
+httpx==0.25.2
+
+# Development and Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+black==23.11.0
+flake8==6.1.0 
