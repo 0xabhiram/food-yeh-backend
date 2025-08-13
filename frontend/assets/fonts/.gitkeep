@@ -1,0 +1,6 @@
+# This file ensures the fonts directory is tracked by git
+# Add your Poppins font files here:
+# - Poppins-Regular.ttf
+# - Poppins-Medium.ttf
+# - Poppins-SemiBold.ttf
+# - Poppins-Bold.ttf

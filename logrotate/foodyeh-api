@@ -1,0 +1,27 @@
+# Logrotate configuration for Foodyeh API
+/var/log/foodyeh/*.log {
+    daily
+    missingok
+    rotate 30
+    compress
+    delaycompress
+    notifempty
+    create 644 foodyeh foodyeh
+    postrotate
+        systemctl reload foodyeh-api > /dev/null 2>&1 || true
+    endscript
+}
+
+# Mosquitto logs
+/var/log/mosquitto/*.log {
+    daily
+    missingok
+    rotate 14
+    compress
+    delaycompress
+    notifempty
+    create 644 mosquitto mosquitto
+    postrotate
+        systemctl reload mosquitto > /dev/null 2>&1 || true
+    endscript
+}
