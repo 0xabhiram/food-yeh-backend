@@ -1,0 +1,16 @@
+# Foodyeh Logo Asset
+# This file should contain the actual Foodyeh logo PNG image
+# Based on the logo provided: "FoodYeh!" with teal "Food" and orange "Yeh!"
+# 
+# To add the actual logo:
+# 1. Save the FoodYeh! logo as PNG format
+# 2. Replace this file with the actual image
+# 3. Recommended dimensions: 200x60 pixels for optimal display
+#
+# The logo will be used in:
+# - Home screen AppBar (32px height)
+# - Login screen (80px height)
+#
+# Colors in the logo:
+# - "Food" in teal/cyan color
+# - "Yeh!" in orange color

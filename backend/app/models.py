@@ -26,6 +26,17 @@ class PaymentStatus(str, enum.Enum):
     REFUNDED = "refunded"
 
 
+class Category(str, enum.Enum):
+    FAST_FOOD = "fast_food"
+    PIZZA = "pizza"
+    SALAD = "salad"
+    DESSERT = "dessert"
+    BEVERAGE = "beverage"
+    SNACKS = "snacks"
+    SANDWICH = "sandwich"
+    SOUP = "soup"
+
+
 class User(Base):
     __tablename__ = "users"
 

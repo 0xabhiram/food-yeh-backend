@@ -70,6 +70,12 @@ class UserLogin(BaseModel):
     password: str
 
 
+class UserLoginToken(BaseModel):
+    """Schema for /auth/token endpoint (Flutter app compatibility)"""
+    username: str  # This will be the email
+    password: str
+
+
 class UserResponse(UserBase):
     id: int
     role: UserRole

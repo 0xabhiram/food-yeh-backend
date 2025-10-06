@@ -7,18 +7,25 @@ import re
 from typing import List
 from fastapi import Request, HTTPException, status
 from fastapi.responses import JSONResponse
-from app.auth import get_current_active_user
+from jose import JWTError, jwt
+from app.config import settings
+from app.database import get_db
+from app.models import User
 from app.utils.security import log_security_event
 
 # Public endpoints that don't require authentication
 PUBLIC_PATHS = [
-    r'^/auth/signup$',
-    r'^/auth/login$', 
-    r'^/auth/refresh$',
+    r'^/$',  # Root endpoint
     r'^/health$',
+    r'^/auth/signup$',
+    r'^/auth/login$',
+    r'^/auth/token$',  # Add token endpoint
+    r'^/auth/refresh$',
     r'^/docs$',
     r'^/openapi\.json$',
-    r'^/redoc$'
+    r'^/redoc$',
+    r'^/static/.*$',  # Static files
+    r'^/uploads/.*$'  # Upload files
 ]
 
 # Compile regex patterns for efficient matching
@@ -59,28 +66,82 @@ async def auth_middleware(request: Request, call_next):
                 "path": path,
                 "method": method
             })
-            raise HTTPException(
+            return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Authorization header required",
+                content={"detail": "Authorization header required"},
                 headers={"WWW-Authenticate": "Bearer"}
             )
         
-        # Validate JWT token by calling the dependency
-        await get_current_active_user(request)
+        if not auth_header.startswith("Bearer "):
+            client_ip = request.client.host if request.client else "unknown"
+            log_security_event("invalid_auth_format", ip_address=client_ip, details={
+                "path": path,
+                "method": method
+            })
+            return JSONResponse(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={"detail": "Invalid authorization header format"},
+                headers={"WWW-Authenticate": "Bearer"}
+            )
         
-        # Continue with the request
-        response = await call_next(request)
-        return response
+        # Extract token
+        token = auth_header.split(" ")[1]
         
-    except HTTPException as e:
-        # Re-raise HTTP exceptions (like 401, 403)
-        client_ip = request.client.host if request.client else "unknown"
-        log_security_event("auth_failed", ip_address=client_ip, details={
-            "path": path,
-            "method": method,
-            "status_code": e.status_code
-        })
-        raise e
+        try:
+            # Decode JWT token
+            payload = jwt.decode(
+                token, 
+                settings.jwt_secret, 
+                algorithms=[settings.jwt_algorithm]
+            )
+            email: str = payload.get("sub")
+            user_id: int = payload.get("user_id")
+            
+            if email is None or user_id is None:
+                return JSONResponse(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    content={"detail": "Invalid token payload"},
+                    headers={"WWW-Authenticate": "Bearer"}
+                )
+            
+            # Get user from database
+            db = next(get_db())
+            user = db.query(User).filter(User.id == user_id).first()
+            
+            if user is None:
+                return JSONResponse(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    content={"detail": "User not found"},
+                    headers={"WWW-Authenticate": "Bearer"}
+                )
+            
+            if not user.is_active:
+                return JSONResponse(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    content={"detail": "User account is disabled"},
+                    headers={"WWW-Authenticate": "Bearer"}
+                )
+            
+            # Add user to request state
+            request.state.user = user
+            
+            # Continue with the request
+            response = await call_next(request)
+            return response
+            
+        except JWTError as e:
+            client_ip = request.client.host if request.client else "unknown"
+            log_security_event("jwt_decode_error", ip_address=client_ip, details={
+                "path": path,
+                "method": method,
+                "error": str(e)
+            })
+            return JSONResponse(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={"detail": "Invalid token"},
+                headers={"WWW-Authenticate": "Bearer"}
+            )
+        
     except Exception as e:
         # Log unexpected authentication errors
         client_ip = request.client.host if request.client else "unknown"
@@ -89,8 +150,8 @@ async def auth_middleware(request: Request, call_next):
             "method": method,
             "error": str(e)
         })
-        raise HTTPException(
+        return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication failed",
+            content={"detail": "Authentication failed"},
             headers={"WWW-Authenticate": "Bearer"}
         )

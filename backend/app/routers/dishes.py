@@ -1,15 +1,66 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import JWTError, jwt
 from app.database import get_db
 from app.models import Dish, User
 from app.schemas import DishCreate, DishUpdate, DishResponse
-from app.auth import get_current_active_user, require_admin
 import os
 import uuid
 from app.config import settings
 
 router = APIRouter(prefix="/dishes", tags=["dishes"])
+security = HTTPBearer()
+
+# Auth functions for dishes router
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+) -> User:
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    try:
+        payload = jwt.decode(credentials.credentials, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+        email: str = payload.get("sub")
+        user_id: int = payload.get("user_id")
+        
+        if email is None or user_id is None:
+            raise credentials_exception
+        
+        user = db.query(User).filter(User.id == user_id).first()
+        if user is None:
+            raise credentials_exception
+        
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Inactive user"
+            )
+        
+        return user
+    except JWTError:
+        raise credentials_exception
+
+def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
+    if not current_user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Inactive user"
+        )
+    return current_user
+
+def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions"
+        )
+    return current_user
 
 
 @router.get("/", response_model=List[DishResponse])
@@ -18,11 +69,16 @@ def get_dishes(
     limit: int = 100,
     category: Optional[str] = None,
     available_only: bool = True,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),  # ✅ ADD AUTHENTICATION
     db: Session = Depends(get_db)
 ):
-    """✅ Get all dishes with optional filtering (JWT required)"""
+    """✅ Get dishes with role-based access control"""
     query = db.query(Dish)
+    
+    # ✅ SECURITY: Users see only available dishes, admins see all
+    if current_user.role != "admin":
+        query = query.filter(Dish.is_available == True)
+        available_only = True  # Force available_only for non-admins
     
     if available_only:
         query = query.filter(Dish.is_available == True)
@@ -36,17 +92,25 @@ def get_dishes(
 
 @router.get("/{dish_id}", response_model=DishResponse)
 def get_dish(
-    dish_id: int, 
-    current_user: User = Depends(get_current_active_user),
+    dish_id: int,
+    current_user: User = Depends(get_current_user),  # ✅ ADD AUTHENTICATION
     db: Session = Depends(get_db)
 ):
-    """✅ Get a specific dish by ID (JWT required)"""
+    """✅ Get a specific dish with access control"""
     dish = db.query(Dish).filter(Dish.id == dish_id).first()
     if not dish:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Dish not found"
         )
+    
+    # ✅ SECURITY: Non-admins can only see available dishes
+    if current_user.role != "admin" and not dish.is_available:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied - dish not available"
+        )
+    
     return dish
 
 
@@ -194,9 +258,9 @@ def upload_dish_image(
 
 @router.get("/categories/list")
 def get_categories(
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),  # ✅ ADD AUTHENTICATION
     db: Session = Depends(get_db)
 ):
-    """✅ Get all available dish categories (JWT required)"""
-    categories = db.query(Dish.category).distinct().filter(Dish.category.isnot(None)).all()
-    return [category[0] for category in categories]
+    """✅ Get all dish categories with authentication"""
+    categories = db.query(Dish.category).distinct().all()
+    return [category[0] for category in categories if category[0]]
